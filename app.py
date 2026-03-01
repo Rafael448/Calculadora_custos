@@ -14,16 +14,18 @@ if 'meus_custos' not in st.session_state:
 with st.expander("➕ Lançar Novo Gasto", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
-        descricao = st.text_input("O que comprou? (ex: Adubo, Diesel)")
+        # Usamos uma 'key' dinâmica para facilitar o reset
+        descricao = st.text_input("O que comprou? (ex: Adubo, Diesel)", key="desc_input")
     with col2:
-        # value=None deixa o campo vazio inicialmente
-        valor = st.number_input("Valor (R$)", min_value=0.0, step=50.0, value=None, format="%.2f")
+        valor = st.number_input("Valor (R$)", min_value=0.0, step=50.0, value=None, format="%.2f", key="val_input")
     
     if st.button("Salvar Gasto"):
-        # Verifica se tem descrição e se o valor foi preenchido
         if descricao and valor:
+            # Salva o dado na lista
             st.session_state.meus_custos.append({"Descrição": descricao, "Valor": valor})
             st.success(f"Registrado: {descricao}")
+            # O comando rerun limpa os campos automaticamente devido ao value=None e à lógica do Streamlit
+            st.rerun()
         else:
             st.warning("Por favor, preencha a descrição e o valor.")
 
@@ -49,17 +51,14 @@ if st.session_state.meus_custos:
     st.divider()
     st.write("### 🧮 Fechamento da Safra")
     
-    # Campo de sacas também começa vazio para facilitar
-    sacas = st.number_input("Quantas sacas você colheu no total?", min_value=1, value=None)
+    sacas = st.number_input("Quantas sacas você colheu no total?", min_value=1, value=None, key="sacas_input")
 
     if st.button("CALCULAR CUSTO POR SACA"):
         if sacas:
             custo_saca = total_acumulado / sacas
-            
             custo_formatado = f"R$ {custo_saca:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             st.metric(label="Custo Real por Saca", value=custo_formatado)
             
-            # Mensagem simples sem balões
             if custo_saca < 1000:
                 st.success("Excelente! Seu custo está competitivo.")
             else:

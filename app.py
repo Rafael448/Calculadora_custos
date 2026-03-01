@@ -26,11 +26,26 @@ with st.expander("➕ Lançar Novo Gasto", expanded=True):
 # --- TABELA DE GASTOS ---
 if st.session_state.meus_custos:
     st.write("### 📋 Seus Lançamentos")
-    df = pd.DataFrame(st.session_state.meus_custos)
-    st.table(df)
     
+    # Cria uma tabela (DataFrame) com os dados
+    df = pd.DataFrame(st.session_state.meus_custos)
+    
+    # --- TRUQUE DE FORMATAÇÃO BRASILEIRA ---
+    # Criamos uma cópia para não atrapalhar a conta matemática depois
+    df_visual = df.copy()
+    
+    # Aplica a formatação: R$ 1.000,00
+    df_visual["Valor"] = df_visual["Valor"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    
+    # Mostra a tabela bonitinha
+    st.table(df_visual)
+    
+    # Calcula o total matemático (usando a tabela original 'df', não a visual)
     total_acumulado = df["Valor"].sum()
-    st.info(f"**Gasto Acumulado até agora:** R$ {total_acumulado:,.2f}")
+    
+    # Formata o total também para ficar bonito na caixa azul
+    total_formatado = f"R$ {total_acumulado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    st.info(f"**Gasto Acumulado até agora:** {total_formatado}")
 
     # --- ÁREA DE CÁLCULO FINAL ---
     st.divider()
@@ -39,7 +54,11 @@ if st.session_state.meus_custos:
 
     if st.button("CALCULAR CUSTO POR SACA"):
         custo_saca = total_acumulado / sacas
-        st.metric(label="Custo Real por Saca", value=f"R$ {custo_saca:,.2f}")
+        
+        # Formata o resultado final
+        custo_formatado = f"R$ {custo_saca:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        
+        st.metric(label="Custo Real por Saca", value=custo_formatado)
         
         if custo_saca < 1000:
             st.balloons()
@@ -51,4 +70,4 @@ if st.session_state.meus_custos:
         st.session_state.meus_custos = []
         st.rerun()
 else:
-    st.write("Nenhum gasto lançado ainda.")
+    st.info("Nenhum gasto lançado ainda. Use o formulário acima para começar.")

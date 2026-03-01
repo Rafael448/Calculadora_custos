@@ -11,7 +11,6 @@ if 'meus_custos' not in st.session_state:
     st.session_state.meus_custos = []
 
 # --- ÁREA DE LANÇAMENTO (COM RESET AUTOMÁTICO) ---
-# O clear_on_submit=True limpa os campos assim que o botão é clicado
 with st.form("formulario_gasto", clear_on_submit=True):
     st.write("➕ **Lançar Novo Gasto**")
     col1, col2 = st.columns(2)
@@ -25,7 +24,7 @@ with st.form("formulario_gasto", clear_on_submit=True):
     if botao_salvar:
         if descricao and valor:
             st.session_state.meus_custos.append({"Descrição": descricao, "Valor": valor})
-            st.toast(f"Registrado: {descricao}") # Notificação rápida no canto da tela
+            st.toast(f"Registrado: {descricao}")
             st.rerun()
         else:
             st.warning("Por favor, preencha a descrição e o valor antes de salvar.")
@@ -42,6 +41,16 @@ if st.session_state.meus_custos:
     
     st.table(df_visual)
     
+    # --- OPÇÃO DE EXCLUIR ITEM ESPECÍFICO ---
+    with st.expander("🗑️ Excluir um lançamento errado"):
+        opcoes = [f"{i} - {item['Descrição']} (R$ {item['Valor']})" for i, item in enumerate(st.session_state.meus_custos)]
+        item_para_excluir = st.selectbox("Selecione o item para apagar:", opcoes)
+        if st.button("Confirmar Exclusão"):
+            indice = int(item_para_excluir.split(" - ")[0])
+            item_removido = st.session_state.meus_custos.pop(indice)
+            st.toast(f"Removido: {item_removido['Descrição']}")
+            st.rerun()
+
     # Cálculo do total
     total_acumulado = df["Valor"].sum()
     total_formatado = f"R$ {total_acumulado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")

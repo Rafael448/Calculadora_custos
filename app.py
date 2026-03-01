@@ -10,24 +10,25 @@ st.subheader("Vá lançando seus custos durante a safra")
 if 'meus_custos' not in st.session_state:
     st.session_state.meus_custos = []
 
-# --- ÁREA DE LANÇAMENTO ---
-with st.expander("➕ Lançar Novo Gasto", expanded=True):
+# --- ÁREA DE LANÇAMENTO (COM RESET AUTOMÁTICO) ---
+# O clear_on_submit=True limpa os campos assim que o botão é clicado
+with st.form("formulario_gasto", clear_on_submit=True):
+    st.write("➕ **Lançar Novo Gasto**")
     col1, col2 = st.columns(2)
     with col1:
-        # Usamos uma 'key' dinâmica para facilitar o reset
-        descricao = st.text_input("O que comprou? (ex: Adubo, Diesel)", key="desc_input")
+        descricao = st.text_input("O que comprou? (ex: Adubo, Diesel)")
     with col2:
-        valor = st.number_input("Valor (R$)", min_value=0.0, step=50.0, value=None, format="%.2f", key="val_input")
+        valor = st.number_input("Valor (R$)", min_value=0.0, step=50.0, value=None, format="%.2f")
     
-    if st.button("Salvar Gasto"):
+    botao_salvar = st.form_submit_button("Salvar Gasto")
+
+    if botao_salvar:
         if descricao and valor:
-            # Salva o dado na lista
             st.session_state.meus_custos.append({"Descrição": descricao, "Valor": valor})
-            st.success(f"Registrado: {descricao}")
-            # O comando rerun limpa os campos automaticamente devido ao value=None e à lógica do Streamlit
+            st.toast(f"Registrado: {descricao}") # Notificação rápida no canto da tela
             st.rerun()
         else:
-            st.warning("Por favor, preencha a descrição e o valor.")
+            st.warning("Por favor, preencha a descrição e o valor antes de salvar.")
 
 # --- TABELA DE GASTOS ---
 if st.session_state.meus_custos:
@@ -51,7 +52,7 @@ if st.session_state.meus_custos:
     st.divider()
     st.write("### 🧮 Fechamento da Safra")
     
-    sacas = st.number_input("Quantas sacas você colheu no total?", min_value=1, value=None, key="sacas_input")
+    sacas = st.number_input("Quantas sacas você colheu no total?", min_value=1, value=None)
 
     if st.button("CALCULAR CUSTO POR SACA"):
         if sacas:

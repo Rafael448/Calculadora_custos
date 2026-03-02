@@ -26,15 +26,13 @@ def gerar_pdf(dados, total, custo_saca, preco_venda, lucro_real, nome_safra):
     pdf.ln(10)
     pdf.set_font("Arial", "B", 12)
     t_f = f"{total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    pdf.cell(190, 10, f"Gasto Total Acumulado: R$ {t_f}", ln=True)
+    pdf.cell(190, 10, f"CUSTO TOTAL DA PRODUCAO: R$ {t_f}", ln=True)
     
     if custo_saca > 0:
         cs_f = f"{custo_saca:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        lr_f = f"{lucro_real:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         pv_f = f"{preco_venda:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        pdf.cell(190, 10, f"Custo por Saca: R$ {cs_f}", ln=True)
-        pdf.cell(190, 10, f"Lucro Desejado por Saca: R$ {lr_f}", ln=True)
-        pdf.cell(190, 10, f"Preco Alvo de Venda: R$ {pv_f}", ln=True)
+        pdf.cell(190, 10, f"PRECO PARA COBRIR CUSTOS (Empate): R$ {cs_f}", ln=True)
+        pdf.cell(190, 10, f"PRECO ALVO PARA VENDA (Com Lucro): R$ {pv_f}", ln=True)
     
     return pdf.output(dest="S").encode("latin-1")
 
@@ -65,12 +63,10 @@ if st.session_state.meus_custos:
     df = pd.DataFrame(st.session_state.meus_custos)
     st.write(f"### 📋 Lançamentos: {nome_safra}")
     
-    # Tabela visual formatada
     df_visual = df.copy()
     df_visual["Valor"] = df_visual["Valor"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     st.table(df_visual)
     
-    # BOTÃO DE EXCLUIR (RESTAURADO)
     with st.expander("🗑️ Excluir um lançamento errado"):
         opcoes = [f"{i} - {item['Descrição']} (R$ {item['Valor']})" for i, item in enumerate(st.session_state.meus_custos)]
         item_para_excluir = st.selectbox("Selecione o item para apagar:", opcoes)
@@ -79,42 +75,42 @@ if st.session_state.meus_custos:
             st.session_state.meus_custos.pop(indice)
             st.rerun()
 
-    # Gráfico
-    fig = px.pie(df, values='Valor', names='Descrição', hole=0.3, title="Distribuição de Gastos")
-    st.plotly_chart(fig, use_container_width=True)
-    
     total_acumulado = df["Valor"].sum()
+    t_f = f"R$ {total_acumulado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    
+    # Destaque para o Custo Total
+    st.warning(f"💰 **CUSTO TOTAL DA OPERAÇÃO:** {t_f}")
 
-    # --- NOVA ESTRATÉGIA DE LUCRO (R$ POR SACA) ---
+    # Gráfico
+    fig = px.pie(df, values='Valor', names='Descrição', hole=0.3, title="Distribuição Financeira")
+    st.plotly_chart(fig, use_container_width=True)
+
+    # --- ANÁLISE DE PREÇO ---
     st.divider()
-    st.write("### 🎯 Meta de Venda")
+    st.write("### 🧮 Cálculo de Preço de Venda")
     
     col_a, col_b = st.columns(2)
     with col_a:
-        sacas = st.number_input("Sacas colhidas:", min_value=1, value=None)
+        sacas = st.number_input("Total de Sacas colhidas:", min_value=1, value=None)
     with col_b:
-        lucro_por_saca = st.number_input("Lucro desejado POR SACA (R$):", min_value=0.0, value=200.0, step=10.0)
+        lucro_por_saca = st.number_input("Lucro limpo por saca (R$):", min_value=0.0, value=200.0)
 
-    custo_saca = 0
-    preco_venda = 0
     if sacas:
-        custo_saca = total_acumulado / sacas
-        # Nova Lógica: Preço de Venda = Custo + Lucro fixo desejado
-        preco_venda = custo_saca + lucro_por_saca
+        custo_por_saca = total_acumulado / sacas
+        preco_alvo = custo_por_saca + lucro_por_saca
         
-        c_f = f"R$ {custo_saca:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        v_f = f"R$ {preco_venda:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        l_f = f"R$ {lucro_por_saca:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        c_s_f = f"R$ {custo_por_saca:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        p_a_f = f"R$ {preco_alvo:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         
-        st.metric("Seu Custo por Saca", c_f)
-        st.metric(f"Preço para lucrar {l_f}/saca", v_f)
-        st.write(f"ℹ️ *Para ganhar {l_f} limpo em cada saca, você deve vender a {v_f}.*")
+        st.error(f"⚠️ **PREÇO DE COBERTURA (Mínimo):** {c_s_f}")
+        st.write("*(Abaixo disso, você terá prejuízo)*")
+        
+        st.success(f"✅ **PREÇO ALVO (Com Lucro):** {p_a_f}")
+        st.write(f"*(Preço ideal para cobrir os custos e te sobrar R$ {lucro_por_saca:,.2f} por saca)*")
 
-    # --- EXPORTAÇÃO PDF ---
-    pdf_bytes = gerar_pdf(st.session_state.meus_custos, total_acumulado, custo_saca, preco_venda, lucro_por_saca, nome_safra)
-    nome_arq = f"relatorio_{nome_safra.lower().replace(' ', '_')}.pdf"
-    
-    st.download_button(label="📄 Baixar Relatório PDF", data=pdf_bytes, file_name=nome_arq, mime="application/pdf")
+        # --- EXPORTAÇÃO PDF ---
+        pdf_bytes = gerar_pdf(st.session_state.meus_custos, total_acumulado, custo_por_saca, preco_alvo, lucro_por_saca, nome_safra)
+        st.download_button(label="📄 Baixar Relatório PDF", data=pdf_bytes, file_name=f"safra_{nome_safra}.pdf", mime="application/pdf")
 
     if st.button("Limpar Safra"):
         st.session_state.meus_custos = []

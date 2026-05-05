@@ -3,22 +3,49 @@ import pandas as pd
 import plotly.express as px
 from fpdf import FPDF
 
+# Configuração da página (Mantida)
 st.set_page_config(page_title="Gestão de Safra - Nova Resende", layout="centered")
 
-# --- FUNÇÃO PARA LIMPAR E CONVERTER O VALOR DIGITADO ---
+# --- BLOCO ADICIONADO PARA MELHORAR MÓBILE (CSS) ---
+st.markdown("""
+    <style>
+    /* Faz os botões ocuparem a largura total no celular para facilitar o toque */
+    div.stButton > button {
+        width: 100%;
+        border-radius: 10px;
+        height: 3em;
+        background-color: #f0f2f6;
+        border: 1px solid #d1d5db;
+    }
+    /* Melhora o espaçamento em telas menores */
+    .block-container {
+        padding-top: 1.5rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    /* Ajusta o tamanho da tabela para não quebrar o layout */
+    .stTable {
+        font-size: 14px;
+    }
+    /* Estiliza os cards de métricas */
+    [data-testid="stMetricValue"] {
+        font-size: 1.5rem !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- FUNÇÃO PARA LIMPAR E CONVERTER O VALOR DIGITADO (Mantida) ---
 def converter_valor(valor_texto):
     try:
         if not valor_texto:
             return None
-        # Remove R$, espaços e pontos de milhar
         limpo = valor_texto.replace("R$", "").replace(" ", "").replace(".", "")
-        # Troca a vírgula pelo ponto decimal
         limpo = limpo.replace(",", ".")
         return float(limpo)
     except ValueError:
         return None
 
-# --- FUNÇÃO PARA GERAR PDF ---
+# --- FUNÇÃO PARA GERAR PDF (Mantida) ---
 def gerar_pdf(dados, total, custo_saca, preco_venda, lucro_real, nome_safra):
     pdf = FPDF()
     pdf.add_page()
@@ -60,11 +87,11 @@ if 'meus_custos' not in st.session_state:
 # --- ÁREA DE LANÇAMENTO ---
 with st.form("formulario_gasto", clear_on_submit=True):
     st.write("➕ **Lançar Novo Gasto**")
+    # No móbile, essas colunas ficam uma embaixo da outra automaticamente
     col1, col2 = st.columns(2)
     with col1:
         descricao = st.text_input("O que comprou?")
     with col2:
-        # Mudamos para text_input para aceitar vírgulas e pontos
         valor_digitado = st.text_input("Valor (R$)", placeholder="Ex: 1.250,50")
     
     if st.form_submit_button("Salvar Gasto"):
@@ -82,11 +109,13 @@ if st.session_state.meus_custos:
     
     df_visual = df.copy()
     df_visual["Valor"] = df_visual["Valor"].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    
+    # Exibição da tabela (ajustada pelo CSS no topo)
     st.table(df_visual)
     
-    with st.expander("🗑️ Excluir um lançamento errado"):
+    with st.expander("🗑️ Excluir lançamento"):
         opcoes = [f"{i} - {item['Descrição']} (R$ {item['Valor']})" for i, item in enumerate(st.session_state.meus_custos)]
-        item_para_excluir = st.selectbox("Selecione o item para apagar:", opcoes)
+        item_para_excluir = st.selectbox("Selecione o item:", opcoes)
         if st.button("Confirmar Exclusão"):
             indice = int(item_para_excluir.split(" - ")[0])
             st.session_state.meus_custos.pop(indice)
@@ -94,9 +123,12 @@ if st.session_state.meus_custos:
 
     total_acumulado = df["Valor"].sum()
     t_f = f"R$ {total_acumulado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    st.warning(f"💰 **CUSTO TOTAL DA OPERAÇÃO:** {t_f}")
+    
+    # Modificado para móbile: Usando metric para destaque visual
+    st.metric(label="CUSTO TOTAL DA OPERAÇÃO", value=t_f)
 
     fig = px.pie(df, values='Valor', names='Descrição', hole=0.3, title="Distribuição Financeira")
+    fig.update_layout(margin=dict(t=30, b=0, l=0, r=0)) # Ajuste de margem para celular
     st.plotly_chart(fig, use_container_width=True)
 
     # --- ANÁLISE DE PREÇO ---
@@ -119,13 +151,16 @@ if st.session_state.meus_custos:
         c_s_f = f"R$ {custo_por_saca:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         p_a_f = f"R$ {preco_alvo:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         
-        st.error(f"⚠️ **PREÇO DE COBERTURA (Mínimo):** {c_s_f}")
-        st.success(f"✅ **PREÇO ALVO (Com Lucro):** {p_a_f}")
+        # Modificado para móbile: Exibição em colunas que viram cards
+        m1, m2 = st.columns(2)
+        m1.metric("Preço de Cobertura", c_s_f)
+        m2.metric("Preço Alvo (Lucro)", p_a_f)
 
+        st.divider()
         pdf_bytes = gerar_pdf(st.session_state.meus_custos, total_acumulado, custo_por_saca, preco_alvo, lucro_por_saca, nome_safra)
         st.download_button(label="📄 Baixar Relatório PDF", data=pdf_bytes, file_name=f"safra_{nome_safra}.pdf", mime="application/pdf")
 
-    if st.button("Limpar Safra"):
+    if st.button("Limpar Tudo"):
         st.session_state.meus_custos = []
         st.rerun()
 else:
